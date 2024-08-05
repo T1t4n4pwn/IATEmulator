@@ -18,7 +18,12 @@ Emulator::Emulator()
 Emulator::~Emulator()
 {
 	Deinitialize();
-	uc_hook_del(m_uc, m_exceptionHook);
+	if (m_exceptionHook != NULL) {
+		uc_hook_del(m_uc, m_exceptionHook);
+	}
+	if (m_codeHook != NULL) {
+		uc_hook_del(m_uc, m_codeHook);
+	}
 	uc_close(m_uc);
 }
 
@@ -188,9 +193,9 @@ uc_err Emulator::Run()
 	uintptr_t StackIndexDiff = CspPtr - ip;
 	m_invoketype = IsInRange(StackIndexDiff - 5, 0, 2);
 	if(m_invoketype)
-		m_invokeoffset = FinalCSP == EmuCSP;
+		m_invokeoffset = FinalCSP == EmuCSP; //call
 	else
-		m_invokeoffset = FinalCSP == EmuCSP - sizeof(uintptr_t);
+		m_invokeoffset = FinalCSP == EmuCSP + sizeof(uintptr_t);
 	return m_err;
 }
 
@@ -200,6 +205,17 @@ void Emulator::SetExcetionHandler(EXCEPTION_HANDLER exceptionHandler)
 	m_err = uc_hook_add(m_uc, &m_exceptionHook,
 		UC_HOOK_MEM_READ_UNMAPPED | UC_HOOK_MEM_WRITE_UNMAPPED | UC_HOOK_MEM_FETCH_UNMAPPED,
 		(void*)exceptionHandler, this, 1, 0);
+}
+
+void Emulator::SetCodeCallBack(CODE_CALLBACK cb)
+{
+	m_err = uc_hook_add(m_uc, &m_codeHook, UC_HOOK_CODE, cb, this, 1, 0);
+}
+
+void Emulator::ClearCodeCallBack()
+{
+	uc_hook_del(m_uc, m_codeHook);
+	m_codeHook = 0;
 }
 
 bool Emulator::Stop()

@@ -5,6 +5,7 @@
 #include <unicorn/unicorn.h>
 
 typedef bool (*EXCEPTION_HANDLER)(uc_engine* uc, uc_mem_type type, uint64_t address, int size, int64_t value, void* user_data);
+typedef void (*CODE_CALLBACK)(uc_engine* uc, uint64_t address, uint32_t size, void* user_data);
 
 class Emulator
 {
@@ -22,6 +23,7 @@ private:
 	const uintptr_t kRegsBufferSize = 0x15000;
 
 	uc_hook m_exceptionHook;
+	uc_hook m_codeHook;
 
 	uintptr_t m_EmulationAddress;
 	uint8_t m_invoketype; //0=jmp 1=call
@@ -50,6 +52,9 @@ public:
 	void Reset();
 
 	void SetExcetionHandler(EXCEPTION_HANDLER exceptionHandler);
+	void SetCodeCallBack(CODE_CALLBACK cb);
+
+	void ClearCodeCallBack();
 
 	uintptr_t GetEmulationResult() {return m_EmulationAddress;}
 	uint8_t GetEmulationType() {return m_invoketype;}

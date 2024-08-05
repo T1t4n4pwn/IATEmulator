@@ -43,6 +43,11 @@ typedef struct {
     duint Addr;
 }BRANCH_INFO;
 
+std::atomic<duint> sleepAddrTmp = 0;
+std::atomic_bool isLstrlen = false;
+
+duint g_sleep_Addr = (duint)GetProcAddress(GetModuleHandleA("kernel32.dll"), "Sleep");
+duint g_lstrlenA_Addr = (duint)GetProcAddress(GetModuleHandleA("kernelbase.dll"), "lstrlenA");
 
 bool IsInRange(duint addr, duint start, duint end)
 {
@@ -165,6 +170,7 @@ bool SearchFF25(Script::Module::ModuleSectionInfo info, std::vector<BRANCH_INFO>
     return result.size() > 0;
 }
 
+
 bool ExceptionHandler(uc_engine* uc, uc_mem_type type, uint64_t address, int size, int64_t value, void* user_data) {
 
     Emulator* emu = (Emulator*)user_data;
@@ -202,6 +208,7 @@ bool ExceptionHandler(uc_engine* uc, uc_mem_type type, uint64_t address, int siz
         emu->ReadReg(UC_X86_REG_ESP, rspValue);
         duint retValue = 0;
         emu->ReadMemory(rspValue, sizeof(duint), (uint8_t*)&retValue);
+
         if (IsInRange(retValue, g_emulationStart, g_emulationEnd)) {
             duint cipValue = 0;
 #ifdef _WIN64
@@ -210,19 +217,30 @@ bool ExceptionHandler(uc_engine* uc, uc_mem_type type, uint64_t address, int siz
 #else
             emu->ReadReg(UC_X86_REG_EIP, cipValue);
 #endif
-            if (cipValue == (duint)Sleep) {
-                emu->SetCIP(retValue);
-                emu->WriteReg(UC_X86_REG_ESP, rspValue + sizeof(duint));
+            if (cipValue == g_sleep_Addr) {
+
+
+                //emu->SetCIP(retValue);
+                //emu->WriteReg(UC_X86_REG_ESP, rspValue + sizeof(duint));
+
+                sleepAddrTmp = retValue;
+                uc_mem_map(uc, (duint)PAGE_ALIGN(cipValue), PAGE_SIZE, UC_PROT_ALL);
+
                 return true;
             }
-            if (cipValue == (duint)lstrlenA) {
-#ifdef _WIN64
-                emu->WriteReg(UC_X86_REG_RAX, 0);
-#else
-                emu->WriteReg(UC_X86_REG_EAX, 0);
-#endif
-                emu->SetCIP(retValue);
-                emu->WriteReg(UC_X86_REG_ESP, rspValue + sizeof(duint));
+            if (cipValue == g_lstrlenA_Addr) {
+
+                isLstrlen = true;
+                uc_mem_map(uc, (duint)PAGE_ALIGN(cipValue), PAGE_SIZE, UC_PROT_ALL);
+
+//#ifdef _WIN64
+//                emu->WriteReg(UC_X86_REG_RAX, 0);
+//#else
+//                emu->WriteReg(UC_X86_REG_EAX, 0);
+//#endif
+//                emu->SetCIP(retValue);
+//                emu->WriteReg(UC_X86_REG_ESP, rspValue + sizeof(duint));
+
                 return true;
             }
             
@@ -231,6 +249,61 @@ bool ExceptionHandler(uc_engine* uc, uc_mem_type type, uint64_t address, int siz
 
     }
     return true;
+}
+
+void CodeHook(uc_engine* uc, uint64_t address, uint32_t size, void* user_data) {
+    
+    //if (address > 0x200000000)
+    //{
+    //    std::cout <<"233"
+    //}
+
+    if (sleepAddrTmp.load()) {
+
+        Emulator* emu = (Emulator*)user_data;
+
+        duint rspValue = 0;
+        emu->ReadReg(UC_X86_REG_ESP, rspValue);
+        duint retValue = 0;
+        emu->ReadMemory(rspValue, sizeof(duint), (uint8_t*)&retValue);
+
+        emu->SetCIP(retValue);
+        emu->WriteReg(UC_X86_REG_ESP, rspValue + sizeof(duint));
+
+        uc_mem_unmap(uc, (duint)PAGE_ALIGN(g_sleep_Addr), PAGE_SIZE);
+
+        sleepAddrTmp = 0;
+
+        return;
+    }
+    
+    if (isLstrlen) {
+        Emulator* emu = (Emulator*)user_data;
+  /*      duint cip = 0;
+        emu->GetCIP(cip);
+
+        if (cip < g_lstrlenA_Addr) {
+            uc_mem_unmap(uc, (duint)PAGE_ALIGN(g_lstrlenA_Addr), PAGE_SIZE);
+            isLstrlen = false;
+        }*/
+        duint rspValue = 0;
+        emu->ReadReg(UC_X86_REG_ESP, rspValue);
+        duint retValue = 0;
+        emu->ReadMemory(rspValue, sizeof(duint), (uint8_t*)&retValue);
+
+#ifdef _WIN64
+        emu->WriteReg(UC_X86_REG_RAX, 0);
+#else
+        emu->WriteReg(UC_X86_REG_EAX, 0);
+#endif
+        emu->SetCIP(retValue);
+        emu->WriteReg(UC_X86_REG_ESP, rspValue + sizeof(duint));
+        isLstrlen = false;
+        uc_mem_unmap(uc, (duint)PAGE_ALIGN(g_lstrlenA_Addr), PAGE_SIZE);
+        return;
+    }
+
+    return;
 }
 
 void EmulationProcessing() {
@@ -286,6 +359,8 @@ void EmulationProcessing() {
     emu.Initialize(dump, mainInfo.size, mainInfo.base);
 
     emu.SetExcetionHandler(ExceptionHandler);
+
+    emu.SetCodeCallBack(CodeHook);
 
     for (size_t i = 0; i < ff15List.size(); i++)
     {
@@ -349,14 +424,14 @@ void EmulationProcessing() {
             continue;
         }
         std::vector<uint8_t> FixedInstruction;
-        bool IsHavePrefix = Script::Memory::ReadByte(callList[i].Addr + 1) == 0x48;
+        bool IsHavePrefix = Script::Memory::ReadByte(callList[i].Addr - 1) == 0x48;
         if(IsHavePrefix)
             FixedInstruction.push_back(0x48);
         FixedInstruction.push_back(0xFF);
         FixedInstruction.push_back(emu.GetEmulationType()?0x15:0x25);
         duint TargetSavedPlace = g_iatsaveplace + i*sizeof(duint);
 #ifdef _WIN64
-        ULONG Offset = TargetSavedPlace - callList[i].Addr - (IsHavePrefix?7:6);
+        ULONG Offset = TargetSavedPlace - callList[i].Addr - 6 + emu.GetEmulationOffset();
 #else
         ULONG Offset = TargetSavedPlace;
 #endif
