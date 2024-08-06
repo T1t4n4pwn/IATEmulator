@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/x64dbg/x32/plugins/IATEmulator.dp32
+/x64dbg/x32/plugins/IATEmulator.lib
+/x64dbg/x32/plugins/IATEmulator.exp
