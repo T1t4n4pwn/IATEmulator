@@ -24,7 +24,16 @@
     <ClCompile Include="plugin.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="Emulator64.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="Emulator.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Emulator32.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -35,7 +44,16 @@
     <ClInclude Include="plugin.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="Emulator64.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="Emulator.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Emulator32.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

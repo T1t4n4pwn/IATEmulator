@@ -1,15 +1,43 @@
+#pragma once
 #include <iostream>
-#include <Windows.h>
-#include "pluginmain.h"
-
 #include <unicorn/unicorn.h>
+
+#include "Utils.h"
 
 typedef bool (*EXCEPTION_HANDLER)(uc_engine* uc, uc_mem_type type, uint64_t address, int size, int64_t value, void* user_data);
 typedef void (*CODE_CALLBACK)(uc_engine* uc, uint64_t address, uint32_t size, void* user_data);
 
-class Emulator
-{
-private:
+class Emulator {
+public:
+
+	Emulator();
+	~Emulator();
+
+	virtual bool Initialize(unsigned char* data, size_t size, uintptr_t address) = 0;
+	virtual void Deinitialize() = 0;
+	virtual bool InitRegs() = 0;
+
+	virtual uintptr_t GetCIP() = 0;
+	virtual bool SetCIP(uintptr_t ip) = 0;
+
+	virtual uc_err Run() = 0;
+	virtual bool Stop() = 0;
+
+	void SetExcetionHandler(EXCEPTION_HANDLER exceptionHandler);
+	void SetCodeCallBack(CODE_CALLBACK cb);
+	void ClearCodeCallBack();
+
+	uintptr_t ReadReg(unsigned int reg);
+	bool WriteReg(unsigned int reg, uintptr_t value);
+
+	bool ReadMemory(unsigned int address, unsigned int size, unsigned char* buffer);
+	bool WriteMemory(unsigned int address, unsigned int size, unsigned char* buffer);
+
+	uintptr_t GetEmulationResult() { return m_emulationAddress; }
+	uint8_t GetEmulationType() { return m_invokeType; }
+	uint8_t GetEmulationOffset() { return m_invokeOffset; }
+
+protected:
 	uc_engine* m_uc;
 	uc_err m_err;
 
@@ -25,40 +53,8 @@ private:
 	uc_hook m_exceptionHook;
 	uc_hook m_codeHook;
 
-	uintptr_t m_EmulationAddress;
-	uint8_t m_invoketype; //0=jmp 1=call
-	uint8_t m_invokeoffset; 
-public:
-	Emulator();
-	~Emulator();
-
-	bool Initialize(unsigned char* data, size_t size, uintptr_t address);
-	void Deinitialize();
-
-	bool InitRegs();
-
-	bool GetCIP(uintptr_t& ip);
-	bool SetCIP(uintptr_t ip);
-
-	bool ReadReg(unsigned int reg, uintptr_t& value);
-	bool WriteReg(unsigned int reg, uintptr_t value);
-
-	bool ReadMemory(unsigned int address, unsigned int size, unsigned char* buffer);
-	bool WriteMemory(unsigned int address, unsigned int size, unsigned char* buffer);
-
-	uc_err Run();
-	bool Stop();
-
-	void Reset();
-
-	void SetExcetionHandler(EXCEPTION_HANDLER exceptionHandler);
-	void SetCodeCallBack(CODE_CALLBACK cb);
-
-	void ClearCodeCallBack();
-
-	uintptr_t GetEmulationResult() {return m_EmulationAddress;}
-	uint8_t GetEmulationType() {return m_invoketype;}
-	uint8_t GetEmulationOffset() {return m_invokeoffset;}
-	std::vector<duint> m_addrMaps;
+	uintptr_t m_emulationAddress;
+	uint8_t m_invokeType; //0=jmp 1=call
+	uint8_t m_invokeOffset;
 
 };
