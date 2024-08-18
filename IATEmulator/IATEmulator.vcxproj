@@ -183,19 +183,13 @@
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="Emulator.cpp" />
-    <ClCompile Include="Emulator32.cpp" />
-    <ClCompile Include="Emulator64.cpp" />
     <ClCompile Include="plugin.cpp" />
     <ClCompile Include="pluginmain.cpp" />
-    <ClCompile Include="Utils.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Emulator.h" />
-    <ClInclude Include="Emulator32.h" />
-    <ClInclude Include="Emulator64.h" />
     <ClInclude Include="plugin.h" />
     <ClInclude Include="pluginmain.h" />
-    <ClInclude Include="Utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
